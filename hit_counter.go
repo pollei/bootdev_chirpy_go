@@ -13,6 +13,10 @@ type handlerHitCounter struct {
 	metrics *handlerHitCounterMetric
 }
 
+func (hc *handlerHitCounter) Reset() {
+	hc.hits.And(0)
+}
+
 func (hc *handlerHitCounter) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	hc.hits.Add(1)
 	hc.next.ServeHTTP(rw, req)
@@ -33,11 +37,17 @@ func (hcRst *handlerHitCounterReset) ServeHTTP(rw http.ResponseWriter, req *http
 }
 
 func (hcMtrc *handlerHitCounterMetric) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	//rw.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 	hits := hcMtrc.hc.hits.Load()
-	outStr := fmt.Sprintf("Hits: %d\n", hits)
-	fmt.Printf(" metric %s \n", outStr)
+	outStr := fmt.Sprintf(
+		`<html>
+  <body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited %d times!</p>
+  </body>
+</html>`, hits)
+	//fmt.Printf(" metric %s \n", outStr)
 	rw.Write([]byte(outStr))
 	rw.WriteHeader(200)
 
