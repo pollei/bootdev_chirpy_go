@@ -6,11 +6,13 @@ import (
 
 func main() {
 	srvMux := http.NewServeMux()
-	srvMux.Handle("/app/",
-		http.StripPrefix(
-			"/app/",
-			http.FileServer(http.Dir("public_html"))))
-	srvMux.HandleFunc("/healthz", healthHand)
+	hcHand := newHandlerHitCounter(http.StripPrefix(
+		"/app/",
+		http.FileServer(http.Dir("public_html"))))
+	srvMux.Handle("/app/", hcHand)
+	srvMux.Handle("POST /reset", hcHand.reset)
+	srvMux.Handle("GET /metrics", hcHand.metrics)
+	srvMux.HandleFunc("GET /healthz", healthHand)
 	httpD := &http.Server{
 		Handler: srvMux,
 		Addr:    ":8080",
