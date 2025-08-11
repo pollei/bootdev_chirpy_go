@@ -11,10 +11,11 @@ import (
 )
 
 type mainEvilGlobals struct {
-	db        *sql.DB
-	dbQueries *database.Queries
-	platform  string
-	hcHand    *handlerHitCounter
+	db           *sql.DB
+	dbQueries    *database.Queries
+	platform     string
+	jwtSecretKey string
+	hcHand       *handlerHitCounter
 }
 
 var mainGLOBS mainEvilGlobals
@@ -38,9 +39,16 @@ func main() {
 	mainGLOBS.hcHand = hcHand
 	srvMux.Handle("/app/", hcHand)
 	srvMux.HandleFunc("POST /admin/reset", adminResetHand)
-	srvMux.HandleFunc("POST /api/validate_chirp", validateCleanChirpHand)
+	//srvMux.HandleFunc("POST /api/validate_chirp", validateCleanChirpHand)
 	srvMux.HandleFunc("POST /api/users", apiNewUserHand)
+	srvMux.HandleFunc("PUT /api/users", apiUserHand)
+	srvMux.HandleFunc("POST /api/login", apiLoginUserHand)
+	srvMux.HandleFunc("POST /api/refresh", apiRefreshHand)
+	srvMux.HandleFunc("POST /api/revoke", apiRevokeHand)
 	srvMux.HandleFunc("POST /api/chirps", apiNewChirpHand)
+	srvMux.HandleFunc("DELETE /api/chirps/{chirp_id}", apiDeleteChirpByIdHand)
+	srvMux.HandleFunc("GET /api/chirps", apiGetAllChirpsHand)
+	srvMux.HandleFunc("GET /api/chirps/{chirp_id}", apiGetChirpById)
 	srvMux.Handle("POST /admin/metrics_reset", hcHand.reset)
 	srvMux.Handle("GET /admin/metrics", hcHand.metrics)
 	srvMux.HandleFunc("GET /api/healthz", healthHand)
@@ -50,6 +58,7 @@ func main() {
 	}
 	dbURL := os.Getenv("DB_URL")
 	mainGLOBS.platform = os.Getenv("PLATFORM")
+	mainGLOBS.jwtSecretKey = os.Getenv("JWT_SECRET")
 	if len(mainGLOBS.platform) < 1 {
 		mainGLOBS.platform = "prod"
 	}

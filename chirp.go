@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	//"github.com/pollei/bootdev_chirpy_go/internal/database"
+	"github.com/pollei/bootdev_chirpy_go/internal/auth"
 	"github.com/pollei/bootdev_chirpy_go/internal/database"
 )
 
@@ -62,26 +64,109 @@ func apiNewChirpHand(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	jsonReq := database.CreateChirpParams{}
 	err := decoder.Decode(&jsonReq)
-	if err == nil {
-		if len(jsonReq.Body) > 140 {
-			respondWithError(w, 400, "Chirp is too long")
-			return
-		}
-		clean := cleanPhrase(jsonReq.Body)
-		jsonReq.Body = clean
-		chirp, err := mainGLOBS.dbQueries.CreateChirp(r.Context(), jsonReq)
-		if err != nil {
-			fmt.Printf("new user db fail %v \n", err)
-			respondWithError(w, 501, "internal server error")
-			return
-		}
-		respondWithJSON(w, 201, chirp)
+	if err != nil {
+		fmt.Printf("new chirp decode fail %v \n", err)
+		respondWithError(w, 501, "internal server error")
 		return
 	}
-	fmt.Printf("apiNewChirpHand exit %v", err)
+
+	if len(jsonReq.Body) > 140 {
+		respondWithError(w, 400, "Chirp is too long")
+		return
+	}
+	bearTok, err := auth.GetBearerToken(r.Header)
+	if err == nil && len(bearTok) > 5 {
+		uuid, err := auth.ValidateJWT(bearTok, mainGLOBS.jwtSecretKey)
+		if err == nil {
+			jsonReq.UserID = uuid
+		} else {
+			respondWithError(w, 401, "jwt not valid")
+			return
+		}
+	}
+	clean := cleanPhrase(jsonReq.Body)
+	jsonReq.Body = clean
+	chirp, err := mainGLOBS.dbQueries.CreateChirp(r.Context(), jsonReq)
+	if err != nil {
+		fmt.Printf("new chirp db fail \n\t %v \n\t%v \n", jsonReq, err)
+		respondWithError(w, 501, "internal server error")
+		return
+	}
+	respondWithJSON(w, 201, chirp)
 }
 
-//nolint:unused
+func apiGetAllChirpsHand(w http.ResponseWriter, r *http.Request) {
+	chirps, err := mainGLOBS.dbQueries.GetAllChirps(r.Context())
+	if err != nil {
+		fmt.Printf("apiGetAllChirpsHand db fail %v \n", err)
+		respondWithError(w, 501, "internal server error")
+		return
+	}
+	respondWithJSON(w, 200, chirps)
+}
+
+func apiGetChirpById(w http.ResponseWriter, r *http.Request) {
+	chirp_id := r.PathValue("chirp_id")
+	fmt.Printf(" apiGetChirpById %s \n", chirp_id)
+	chirp_uuid, err := uuid.Parse(chirp_id)
+	if err != nil {
+		respondWithError(w, 404, "not valid chirp id")
+		return
+	}
+	fmt.Printf(" apiGetChirpById %s valid format \n", chirp_id)
+	chirp, err := mainGLOBS.dbQueries.GetChirpByID(r.Context(), chirp_uuid)
+	if err == sql.ErrNoRows {
+		respondWithError(w, 404, "not valid chirp id")
+		return
+	}
+	fmt.Printf(" apiGetChirpById db err %v \n", err)
+	if err == nil {
+		fmt.Printf(" apiGetChirpById sending %v", chirp)
+		respondWithJSON(w, 200, chirp)
+		return
+	}
+	//noRowErr := sql.noRowErr
+}
+
+func apiDeleteChirpByIdHand(w http.ResponseWriter, r *http.Request) {
+	chirp_id := r.PathValue("chirp_id")
+	fmt.Printf(" apiDeleteChirpById %s \n", chirp_id)
+	bearTok, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithEmpty(w, 401)
+		return
+	}
+	bearUuid, err := auth.ValidateJWT(bearTok, mainGLOBS.jwtSecretKey)
+	if err != nil {
+		respondWithEmpty(w, 401)
+		return
+	}
+	chirp_uuid, err := uuid.Parse(chirp_id)
+	if err != nil {
+		respondWithError(w, 404, "not valid chirp id")
+		return
+	}
+	fmt.Printf(" apiDeleteChirpById %s valid format \n", chirp_id)
+	chirp, err := mainGLOBS.dbQueries.GetChirpByID(r.Context(), chirp_uuid)
+	if err == sql.ErrNoRows {
+		respondWithError(w, 404, "not valid chirp id")
+		return
+	}
+	if chirp.UserID != bearUuid {
+		respondWithEmpty(w, 403)
+		return
+	}
+	delParams := database.DeleteOwnChirpByIDParams{
+		ID: chirp_uuid, UserID: bearUuid}
+	_, err = mainGLOBS.dbQueries.DeleteOwnChirpByID(r.Context(), delParams)
+	if err == sql.ErrNoRows {
+		respondWithEmpty(w, 404)
+		return
+	}
+	respondWithEmpty(w, 204)
+	//fmt.Printf(" apiDeleteChirpById db err %v \n", err)
+}
+
 func validateCleanChirpHand(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	jsonReq := ChirpPostRequest{}
