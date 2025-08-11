@@ -6,11 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
-	//"time"
-
 	"github.com/google/uuid"
 	"github.com/pollei/bootdev_chirpy_go/internal/auth"
-	//"github.com/pollei/bootdev_chirpy_go/internal/database"
 )
 
 type PolkaApiWebhookData struct {
@@ -47,5 +44,4 @@ func apiPolkaWebhooksHand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondWithEmpty(w, 204)
-
 }

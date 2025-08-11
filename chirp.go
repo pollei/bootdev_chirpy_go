@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
-	//"github.com/pollei/bootdev_chirpy_go/internal/database"
 	"github.com/pollei/bootdev_chirpy_go/internal/auth"
 	"github.com/pollei/bootdev_chirpy_go/internal/database"
 )
@@ -95,12 +95,38 @@ func apiNewChirpHand(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, 201, chirp)
 }
 
+func cmpChirpsByCreate(a, b database.Chirp) int {
+	return b.CreatedAt.Compare(a.CreatedAt)
+}
+
 func apiGetAllChirpsHand(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("author_id")
+	sortStr := r.URL.Query().Get("sort")
+	if len(idStr) > 0 {
+		uuid, err := uuid.Parse(idStr)
+		if err != nil {
+			respondWithEmpty(w, 404)
+			return
+		}
+		getParam := database.GetChirpsByUserIDParams{
+			UserID: uuid, Limit: 99}
+		chirps, err := mainGLOBS.dbQueries.GetChirpsByUserID(
+			r.Context(), getParam)
+		if sortStr == "desc" {
+			slices.SortFunc(chirps, cmpChirpsByCreate)
+		}
+		respondWithJSON(w, 200, chirps)
+		return
+	}
 	chirps, err := mainGLOBS.dbQueries.GetAllChirps(r.Context())
+
 	if err != nil {
 		fmt.Printf("apiGetAllChirpsHand db fail %v \n", err)
 		respondWithError(w, 501, "internal server error")
 		return
+	}
+	if sortStr == "desc" {
+		slices.SortFunc(chirps, cmpChirpsByCreate)
 	}
 	respondWithJSON(w, 200, chirps)
 }
