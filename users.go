@@ -26,6 +26,7 @@ type ChirpApiUserResponse struct {
 	Token          string    `json:"token,omitempty"`
 	RefreshToken   string    `json:"refresh_token,omitempty"`
 	HashedPassword string    `json:"-"`
+	IsChirpyRed    bool      `json:"is_chirpy_red"`
 }
 
 type ChirpApiRefreshResponse struct {
@@ -55,7 +56,8 @@ func apiNewUserHand(w http.ResponseWriter, r *http.Request) {
 		}
 		user := ChirpApiUserResponse{
 			ID: userDb.ID, CreatedAt: userDb.CreatedAt,
-			UpdatedAt: userDb.UpdatedAt, Email: userDb.Email}
+			UpdatedAt: userDb.UpdatedAt, Email: userDb.Email,
+			IsChirpyRed: userDb.IsChirpyRed}
 		respondWithJSON(w, 201, user)
 		return
 	}
@@ -106,7 +108,8 @@ func apiUserHand(w http.ResponseWriter, r *http.Request) {
 	}
 	user := ChirpApiUserResponse{
 		ID: userDb.ID, CreatedAt: userDb.CreatedAt,
-		UpdatedAt: userDb.UpdatedAt, Email: userDb.Email}
+		UpdatedAt: userDb.UpdatedAt, Email: userDb.Email,
+		IsChirpyRed: userDb.IsChirpyRed}
 	respondWithJSON(w, 200, user)
 }
 
@@ -148,7 +151,7 @@ func apiLoginUserHand(w http.ResponseWriter, r *http.Request) {
 	user := ChirpApiUserResponse{
 		ID: userDb.ID, CreatedAt: userDb.CreatedAt,
 		UpdatedAt: userDb.UpdatedAt, Email: userDb.Email,
-		Token: jwtTok, RefreshToken: rfshTok,
+		Token: jwtTok, RefreshToken: rfshTok, IsChirpyRed: userDb.IsChirpyRed,
 	}
 	respondWithJSON(w, 200, user)
 

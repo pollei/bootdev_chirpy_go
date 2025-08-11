@@ -11,11 +11,12 @@ import (
 )
 
 type mainEvilGlobals struct {
-	db           *sql.DB
-	dbQueries    *database.Queries
-	platform     string
-	jwtSecretKey string
-	hcHand       *handlerHitCounter
+	db              *sql.DB
+	dbQueries       *database.Queries
+	platform        string
+	jwtSecretKey    string
+	hcHand          *handlerHitCounter
+	polkaWebhookKey string
 }
 
 var mainGLOBS mainEvilGlobals
@@ -52,6 +53,7 @@ func main() {
 	srvMux.Handle("POST /admin/metrics_reset", hcHand.reset)
 	srvMux.Handle("GET /admin/metrics", hcHand.metrics)
 	srvMux.HandleFunc("GET /api/healthz", healthHand)
+	srvMux.HandleFunc("POST /api/polka/webhooks", apiPolkaWebhooksHand)
 	httpD := &http.Server{
 		Handler: srvMux,
 		Addr:    ":8080",
@@ -59,6 +61,7 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	mainGLOBS.platform = os.Getenv("PLATFORM")
 	mainGLOBS.jwtSecretKey = os.Getenv("JWT_SECRET")
+	mainGLOBS.polkaWebhookKey = os.Getenv("POLKA_KEY")
 	if len(mainGLOBS.platform) < 1 {
 		mainGLOBS.platform = "prod"
 	}

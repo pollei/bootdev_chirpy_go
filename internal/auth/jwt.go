@@ -69,6 +69,17 @@ func GetBearerToken(headers http.Header) (string, error) {
 	return strings.Trim(authS0, " \t"), nil
 }
 
+func GetApikey(headers http.Header) (string, error) {
+	authRaw := headers.Get("Authorization")
+	//fmt.Printf("GetBearerToken raw <%s> \n", authRaw)
+	if len(authRaw) < 12 {
+		return "", errors.New("authorization not found")
+	}
+	authS0, _ := strings.CutPrefix(authRaw, "ApiKey")
+	//fmt.Printf("GetBearerToken s0 <%s> \n", authS0)
+	return strings.Trim(authS0, " \t"), nil
+}
+
 func MakeRefreshToken() (string, error) {
 	buf := [32]byte{}
 	n, err := rand.Read(buf[:])
